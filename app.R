@@ -6,7 +6,18 @@ library(plotly)
 library(aws.s3)
 library(shinyBS)
 
+## Setting upload limit of 35Mb
 options(shiny.maxRequestSize=35*1024^2)
+
+## Installing required Packages
+source("install.R")
+need <- data.frame(pkgs()) %>% filter(!pkgs.. %in% rownames(installed.packages()))
+install.packages(need)
+
+## Fetching AWS Environment
+source("aws_creds.R")
+aws_creds()
+
 
 ## SHINY APP
 
