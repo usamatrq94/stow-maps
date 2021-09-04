@@ -2,7 +2,6 @@ library(shiny)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(plotly)
 library(aws.s3)
 library(shinyBS)
 
