@@ -253,9 +253,6 @@ server <- function(input,output,session) {
   # Date
   observeEvent(
     input$date, {
-      validate(
-        need(input$date != "", "Please upload the dataset to get started.")
-      )
       timeSelector <- reactive(
         dates %>% filter(Date == input$date)
       )
@@ -291,11 +288,13 @@ server <- function(input,output,session) {
   ## Recommendation
   
   # Table
+  
   output$dataset <- renderDataTable(
     wDatabase() %>% group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>%
       slice(1:input$bins)
   )
-
+  
+  
   
   }
 
