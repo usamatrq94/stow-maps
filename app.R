@@ -59,8 +59,8 @@ ui <- fluidPage(
                            selected = 'A')
       ),
       sliderInput(
-        inputId = "bins", label = "Select Number of Aisles",
-        min = 1, value = 25, max = 50
+        inputId = "bins", label = "Select Number of Aisles per Bin Type",
+        min = 1, value = 5, max = 10
       ),
       sliderInput(
         inputId = 'percentile', label = "Select Cutoff Space",
@@ -218,17 +218,44 @@ server <- function(input,output,session) {
     dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>%
       tail(1) %>% first(1)
   )
-  Sdatabase <- reactive(
+  sDatabase <- reactive(
     s3read_using(FUN = read.csv, bucket = 'stowmaps', object = fileName())
   )
+  ## Database Wrangling
+  rawDatabase <- reactive(
+    sDatabase() %>% filter(Bin.Type %in% c("DRAWER", "LIBRARY-DEEP",
+                                         "LIBRARY", "SHOES"),
+                         !Bin.Usage == "DAMAGE") %>%
+      mutate(
+        Size = case_when(
+          Bin.Type == "DRAWER" ~ "A", Bin.Type == "LIBRARY-DEEP" ~ "DL",
+          Bin.Type == "LIBRARY" ~ "L", Bin.Type == "SHOES" ~ "S", TRUE ~ "ERROR"
+        )
+      ) %>% filter(!Dropzone %in% c("dz-P-Damage", "dz-P-DMGLAND", "dz-P-HRV")) %>%
+      mutate(
+        Dz = case_when(
+          Dropzone == 'dz-P-A1LOW' ~ 'L', Dropzone == 'dz-P-NONSORT' ~ '*',
+          Dropzone == 'dz-P-A1MED' ~ 'M', Dropzone == 'dz-P-A1HIGH' ~ 'H',
+          Dropzone == 'dz-P-SORT' ~ '*', Dropzone == 'dz-P-1A' ~ '*',
+          Dropzone == 'dz-P-PRIME' ~ '*', Dropzone == 'dz-P-LIBRARY_DEEP' ~ '*',
+          TRUE ~ "ERROR"
+        )
+      ) %>% mutate(Space = 100 - Utilization..)
+  )
   
-  
+  wDatabase <- reactive(
+    rawDatabase() %>% group_by(Mod, Dz, Size, Aisle) %>%
+      summarise(Aisle.Space = mean(Space)) %>% ungroup()
+  )
   
   ## Slider
   
   # Date
   observeEvent(
     input$date, {
+      validate(
+        need(input$date != "", "Please upload the dataset to get started.")
+      )
       timeSelector <- reactive(
         dates %>% filter(Date == input$date)
       )
@@ -264,12 +291,11 @@ server <- function(input,output,session) {
   ## Recommendation
   
   # Table
-  
   output$dataset <- renderDataTable(
-    Sdatabase()
+    wDatabase() %>% group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>%
+      slice(1:input$bins)
   )
-  
-  
+
   
   }
 
