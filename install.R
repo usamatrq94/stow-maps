@@ -7,8 +7,7 @@ pkgs <- function(){
       "ggplot2",
       "plotly",
       "aws.s3",
-      "shinyBS",
-      "test"
+      "shinyBS"
     )
   )
 }

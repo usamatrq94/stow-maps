@@ -9,11 +9,6 @@ library(shinyBS)
 ## Setting upload limit of 35Mb
 options(shiny.maxRequestSize=35*1024^2)
 
-## Installing required Packages
-source("install.R")
-need <- data.frame(pkgs()) %>% filter(!pkgs.. %in% rownames(installed.packages()))
-install.packages(need)
-
 ## Fetching AWS Environment
 source("aws_creds.R")
 aws_creds()
@@ -43,7 +38,7 @@ ui <- fluidPage(
         column(
           6,
           dateInput(
-            "date", label = "Select Date", value = Sys.Date()+1
+            "date", label = "Select Date", value = Sys.Date()
             )
           ),
         column(
@@ -219,10 +214,20 @@ server <- function(input,output,session) {
       )
     )
   
+  ## Selecting database
+  fileName <- reactive(
+    dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>%
+      tail(1) %>% first(1)
+  )
+  Sdatabase <- reactive(
+    s3read_using(FUN = read.csv, bucket = 'stowmaps', object = fileName())
+  )
+  
+  
+  
   ## Slider
   
-  ## date
-  
+  # Date
   observeEvent(
     input$date, {
       timeSelector <- reactive(
@@ -235,7 +240,35 @@ server <- function(input,output,session) {
     }
   )
   
+  # Upload
+  observeEvent(
+    input$file, {
+      put_object(
+        file = input$file$datapath,
+        object =toString(
+          format(
+            as.POSIXct(Sys.time()),
+            tz="Australia/Melbourne",usetz=FALSE
+          )
+        ),
+        bucket = "stowmaps",
+        multipart = TRUE
+      )
+      session$reload()
+      
+    }
+  )
   
+  
+  ### Main Panel
+  
+  ## Recommendation
+  
+  # Table
+  
+  output$dataset <- renderDataTable(
+    Sdatabase()
+  )
   
   
   
