@@ -70,13 +70,13 @@ ui <- fluidPage(
       ),
       sliderInput(
         inputId = "bins", label = "Select Number of Aisles per Bin Type",
-        min = 1, value = 5, max = 10
+        min = 1, value = 2, max = 10
       ),
       sliderInput(
-        inputId = 'percentile', label = "Select Cutoff Space",
-        min = 0, value = 0, max = 0
+        inputId = 'percentile', label = "Select Number of Top Aisles",
+        min = 1, value = 30, max = 115
       ),
-      h6('Number of Aisles greater than cutoff'),
+      h6('Cutoff Space'),
       verbatimTextOutput("dummy"),
       hr(),
       fileInput("file", label = "Upload a new file", accept = ".csv"),
@@ -259,9 +259,13 @@ server <- function(input,output,session) {
       mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size))
   )
   
-  slices <- reactive(
+  modifier <- reactive(
     wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-      group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>% slice(1:input$bins)
+      group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>% slice(1:input$percentile) 
+  )
+  
+  slices <- reactive(
+    modifier() %>% sample_n(input$bins)
   )
  
   
@@ -298,14 +302,17 @@ server <- function(input,output,session) {
       
     }
   )
-  
-  
+
   ### Main Panel
   
   ## Recommendation
+  ## Last Updated
+  output$dummy2 <- renderText({
+    paste(c("Last updated at: ",fileName()), collapse = " ")
+  })
   # Table
   output$dataset <- renderDataTable(
-    slices()
+    slices() %>% select(Location, Aisle.Space)
   )
   # Aisle Text
   output$aisles <- renderUI(
@@ -318,8 +325,9 @@ server <- function(input,output,session) {
       )
     }
   )
-  
-
+  output$dummy <- renderText({
+    min(modifier()$Aisle.Space)
+  })
   
   }
 
