@@ -237,10 +237,13 @@ server <- function(input,output,session) {
     )
   
   ## Selecting database
-  fileName <- reactive(
+  fileName <- reactive({
+    validate(
+      need(input$time != "", "Please uplaod a new dataset or select date and time to get started.")
+    )
     dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>% 
       arrange(desc(timeRound)) %>% head(1) %>% first(1)
-  )
+  })
   sDatabase <- reactive(
     s3read_using(FUN = read.csv, bucket = 'stowmaps', object = fileName())
   )
