@@ -33,7 +33,7 @@ ui <- fluidPage(
   
   sidebarLayout(
     
-    sidebarPanel(
+    sidebarPanel(width = 3,
       fluidRow(
         column(
           6,
@@ -138,6 +138,7 @@ ui <- fluidPage(
                              ),
                              column(
                                3,
+                               h5("Aisles for Printmon"),
                                htmlOutput("aisles"),
                                tags$head(
                                  tags$style(
@@ -279,7 +280,8 @@ server <- function(input,output,session) {
       )
       updateSelectizeInput(session, 
                            'time', 
-                           choices = timeSelector()$timeRound, 
+                           choices = timeSelector()$timeRound,
+                           selected = unlist(timeSelector()$timeRound)[-1],
                            server = TRUE)
     }
   )
