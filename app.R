@@ -5,6 +5,7 @@ library(ggplot2)
 library(aws.s3)
 library(shinyBS)
 library(shinyWidgets)
+library(DT)
 
 ## Setting upload limit of 35Mb
 options(shiny.maxRequestSize=35*1024^2)
@@ -78,7 +79,6 @@ ui <- fluidPage(
       ),
       h6('Cutoff Space'),
       verbatimTextOutput("dummy"),
-      hr(),
       fileInput("file", label = "Upload a new file", accept = ".csv"),
     ),
     
@@ -120,17 +120,25 @@ ui <- fluidPage(
                            ),
                   tabPanel("Recommendations",
                            br(),
-                           h4("Recommended Aisles:"),
-                           textOutput("dummy2"),
-                           tags$head(
-                             tags$style(
-                               "#dummy2{
-                               font-size: 12px; font-style: italic;
-                               }"
-                             )
+                           fluidRow(
+                             column(9,
+                                    h4("Recommended Aisles:"),
+                                    textOutput("dummy2"),
+                                    tags$head(
+                                      tags$style(
+                                        "#dummy2{font-size: 12px; font-style: italic;}"
+                                      )
+                                    )
+                             ),
+                             column(3,
+                                    pickerInput(
+                                      "displayMode", label = "Datatable Display Mode:",
+                                      choices = c("Basic", "Advanced"),
+                                      selected = "Basic"
+                                    )
+                             ),
                            ),
                            hr(),
-                  
                            fluidRow(
                              column(
                                9,
@@ -274,8 +282,50 @@ server <- function(input,output,session) {
     modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins)
   )
   
-  quant <- reactive(
-    quantile(modifier()$Aisle.Space, 0.75)
+  mapPlot <- reactive(
+    if(input$selectslice == 2){
+      if(input$filteraisles == 0.75){
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          group_by(Size, Aisle, Bay) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Cat.Space) %>%
+          filter(Cat.Space > quantile(modifier()$Aisle.Space, 0.75), Aisle < -410) %>%
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+      else {
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          group_by(Size, Aisle, Bay) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Cat.Space) %>%
+          filter(Cat.Space <quantile(modifier()$Aisle.Space, 0.25), Aisle < -410) %>%
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+    }
+    else {
+      if(input$filteraisles == 0.75){
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          mutate(Dz = case_when(Dz == 'L' ~ -1, Dz == 'M' ~ -2, Dz == 'H' ~ -3)) %>%
+          group_by(Size, Dz, Aisle) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle) %>% ungroup() %>% select(Aisle, Dz, Cat.Space) %>%
+          filter(Cat.Space >quantile(modifier()$Aisle.Space, 0.75), Aisle < -410) %>% 
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+      else {
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          mutate(Dz = case_when(Dz == 'L' ~ -1, Dz == 'M' ~ -2, Dz == 'H' ~ -3)) %>%
+          group_by(Size, Dz, Aisle) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle) %>% ungroup() %>% select(Aisle, Dz, Cat.Space) %>%
+          filter(Cat.Space <quantile(modifier()$Aisle.Space, 0.25), Aisle < -410) %>% 
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+    }
+  )
+  
+  displayTable <- reactive(
+    if(input$displayMode == "Basic"){
+      slices() %>% select(Location, Aisle.Space)
+    }
+    else {
+      wDatabase()
+    }
   )
  
   ## Slider
@@ -321,8 +371,8 @@ server <- function(input,output,session) {
   
   # Table
   output$dataset <- renderDataTable(
-    #slices() %>% select(Location, Aisle.Space)
-    mapPlot()
+    datatable(displayTable(), options = list(pageLength = 8))
+
   )
   
   # Aisle Text
@@ -381,53 +431,7 @@ server <- function(input,output,session) {
   )
   
   ## Analytics
-  
-  # mapPlot <- reactive(
-  #  rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-  #    group_by(Size, Aisle, Bay) %>% summarise(Bay.Space = mean(Space)) %>%
-  #     mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Bay.Space) %>%
-  #     filter(Bay.Space > 30, Aisle < -410)
-  # )
-  
-  mapPlot <- reactive(
-    if(input$selectslice == 2){
-      if(input$filteraisles == 0.75){
-        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-          group_by(Size, Aisle, Bay) %>% summarise(Cat.Space = mean(Space)) %>%
-          mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Cat.Space) %>%
-          filter(Cat.Space > quantile(modifier()$Aisle.Space, 0.75), Aisle < -410) %>%
-          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
-      }
-      else {
-        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-          group_by(Size, Aisle, Bay) %>% summarise(Cat.Space = mean(Space)) %>%
-          mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Cat.Space) %>%
-          filter(Cat.Space <quantile(modifier()$Aisle.Space, 0.25), Aisle < -410) %>%
-          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
-      }
-    }
-    else {
-      if(input$filteraisles == 0.75){
-        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-          mutate(Dz = case_when(Dz == 'L' ~ -1, Dz == 'M' ~ -2, Dz == 'H' ~ -3)) %>%
-          group_by(Size, Dz, Aisle) %>% summarise(Cat.Space = mean(Space)) %>%
-          mutate(Aisle = -1 * Aisle) %>% ungroup() %>% select(Aisle, Dz, Cat.Space) %>%
-          filter(Cat.Space >quantile(modifier()$Aisle.Space, 0.75), Aisle < -410) %>% 
-          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
-      }
-      else {
-        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-          mutate(Dz = case_when(Dz == 'L' ~ -1, Dz == 'M' ~ -2, Dz == 'H' ~ -3)) %>%
-          group_by(Size, Dz, Aisle) %>% summarise(Cat.Space = mean(Space)) %>%
-          mutate(Aisle = -1 * Aisle) %>% ungroup() %>% select(Aisle, Dz, Cat.Space) %>%
-          filter(Cat.Space <quantile(modifier()$Aisle.Space, 0.25), Aisle < -410) %>% 
-          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
-      }
-    }
-  )
-  
-
-  
+  # Stow Map
   output$stowMap <- renderPlot(
     mapPlot() %>% ggplot(.,aes(x=Slicer, y=Aisle, text = paste("Country:", Slicer))) + geom_point(
       color="purple",
@@ -437,7 +441,6 @@ server <- function(input,output,session) {
       size=2,
       stroke = 2
     ) + ylim(-580, -410)
-
   )
   
   }
