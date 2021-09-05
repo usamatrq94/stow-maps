@@ -4,6 +4,7 @@ library(tidyr)
 library(ggplot2)
 library(aws.s3)
 library(shinyBS)
+library(shinyWidgets)
 
 ## Setting upload limit of 35Mb
 options(shiny.maxRequestSize=35*1024^2)
@@ -47,16 +48,25 @@ ui <- fluidPage(
             )
           )
         ),
-      selectInput("selectMode", label = "Select Mode", 
-                  choices = list("Individual" = 1, "Batch" = 2), 
-                  selected = 2),
-      conditionalPanel(
-        "input.selectMode == 1",
-        selectInput("bintype", label = "Select Bin Type", 
-                           choices = list("Apparels" = 'A', "Library" = 'L',
-                                          "Library Deep" = 'DL', "Shoe Bins" = 'S',
-                                          "Non Sort" = 'N'),
-                           selected = 'A')
+      pickerInput(
+        "Size", label = "Bin Size",
+        choices = list("Apparel" = "A", "Library" = "L", "Deep Library" = "DL", "Shoes" = "S"),
+        multiple = TRUE, selected = c("A", "L", "DL", "S"),
+        choicesOpt = list(
+          content = sprintf("<span class='label label-%s'>%s</span>",
+                            c("info", "warning", "danger", "primary"),
+                            c("Apparel", "Library", "Deep Library", "Shoes")
+        ))
+      ),
+      pickerInput(
+        "Mod", label = "Mods",
+        choices = c("A", "B", "D", "N"),
+        multiple = TRUE, selected = c("A", "B", "D"),
+        choicesOpt = list(
+          content = sprintf("<span class='label label-%s'>%s</span>",
+                            c("info", "warning", "danger", "primary"),
+                            c("A", "B", "D", "N")
+          ))
       ),
       sliderInput(
         inputId = "bins", label = "Select Number of Aisles per Bin Type",
@@ -123,16 +133,16 @@ ui <- fluidPage(
                   
                            fluidRow(
                              column(
-                               8,
+                               9,
                                dataTableOutput("dataset")
                              ),
                              column(
-                               4,
-                               textOutput("aisles"),
+                               3,
+                               htmlOutput("aisles"),
                                tags$head(
                                  tags$style(
                                    "#aisles{ 
-                           height: auto; background: WhiteSmoke;   padding: 10px;
+                           height: auto; background: WhiteSmoke;   padding: 10px;   padding-right: 30px;
                           border: 1px #E0E0E0; border-radius: 5px; border: 1px solid #DCDCDC}"
                                  )
                                ),
@@ -215,8 +225,8 @@ server <- function(input,output,session) {
   
   ## Selecting database
   fileName <- reactive(
-    dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>%
-      tail(1) %>% first(1)
+    dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>% 
+      arrange(desc(timeRound)) %>% head(1) %>% first(1)
   )
   sDatabase <- reactive(
     s3read_using(FUN = read.csv, bucket = 'stowmaps', object = fileName())
@@ -245,8 +255,15 @@ server <- function(input,output,session) {
   
   wDatabase <- reactive(
     rawDatabase() %>% group_by(Mod, Dz, Size, Aisle) %>%
-      summarise(Aisle.Space = mean(Space)) %>% ungroup()
+      summarise(Aisle.Space = mean(Space)) %>% ungroup() %>% 
+      mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size))
   )
+  
+  slices <- reactive(
+    wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+      group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>% slice(1:input$bins)
+  )
+ 
   
   ## Slider
   
@@ -286,15 +303,23 @@ server <- function(input,output,session) {
   ### Main Panel
   
   ## Recommendation
-  
   # Table
-  
   output$dataset <- renderDataTable(
-    wDatabase() %>% group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>%
-      slice(1:input$bins)
+    slices()
+  )
+  # Aisle Text
+  output$aisles <- renderUI(
+    {
+      HTML(
+        paste(
+          unlist(slices()$Location),
+          collapse = " <br> "
+        )
+      )
+    }
   )
   
-  
+
   
   }
 
