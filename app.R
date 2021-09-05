@@ -162,9 +162,13 @@ ui <- fluidPage(
                                                                choices = list("By Aisles" = 1, "By Aisles and Bays" = 2), 
                                                                selected = 2),
                                                    selectInput("filteraisles", label = "Filter Aisles", 
-                                                               choices = list("All" = 1, "Top 25%" = 2, "Lowest 25%" = 3), 
-                                                               selected = 3),
+                                                               choices = list("Top 25%" = 0.75, "Lowest 25%" = 0.25), 
+                                                               selected = 0.25),
                                                  ),
+                                                 column(
+                                                   9,
+                                                   plotOutput("stowMap")
+                                                 )
                                                ),
                                                style = "default"
                                                ),
@@ -252,7 +256,7 @@ server <- function(input,output,session) {
           Dropzone == 'dz-P-PRIME' ~ '*', Dropzone == 'dz-P-LIBRARY_DEEP' ~ '*',
           TRUE ~ "ERROR"
         )
-      ) %>% mutate(Space = 100 - Utilization..)
+      ) %>% mutate(Space = 100 - Utilization..) %>% mutate(Bay = as.numeric(substr(Bay.Id,14,16)))
   )
   
   wDatabase <- reactive(
@@ -263,7 +267,7 @@ server <- function(input,output,session) {
   
   modifier <- reactive(
     wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-      group_by(Size) %>% arrange(Size, desc(Aisle.Space))  
+      group_by(Size) %>% arrange(Size, desc(Aisle.Space)) 
   )
   
   slices <- reactive(
@@ -317,7 +321,8 @@ server <- function(input,output,session) {
   
   # Table
   output$dataset <- renderDataTable(
-    slices() %>% select(Location, Aisle.Space)
+    #slices() %>% select(Location, Aisle.Space)
+    mapPlot()
   )
   
   # Aisle Text
@@ -359,7 +364,8 @@ server <- function(input,output,session) {
   )
   # Available Aisles
   output$availAiles <- renderText({
-    count(modifier() %>% filter(Aisle.Space >quant()) %>% ungroup() %>% select(Aisle.Space))[[1]] / 4
+    count(modifier() %>% filter(Aisle.Space >quantile(modifier()$Aisle.Space, 0.75)) %>% 
+            ungroup() %>% select(Aisle.Space))[[1]] / 4
   })
   # Target Aisles
   output$TargetAVG <- renderText("32.7%")
@@ -372,6 +378,66 @@ server <- function(input,output,session) {
         breaks = seq(-150,100,5)
       )
     }
+  )
+  
+  ## Analytics
+  
+  # mapPlot <- reactive(
+  #  rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+  #    group_by(Size, Aisle, Bay) %>% summarise(Bay.Space = mean(Space)) %>%
+  #     mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Bay.Space) %>%
+  #     filter(Bay.Space > 30, Aisle < -410)
+  # )
+  
+  mapPlot <- reactive(
+    if(input$selectslice == 2){
+      if(input$filteraisles == 0.75){
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          group_by(Size, Aisle, Bay) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Cat.Space) %>%
+          filter(Cat.Space > quantile(modifier()$Aisle.Space, 0.75), Aisle < -410) %>%
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+      else {
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          group_by(Size, Aisle, Bay) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle, Bay = -1 * Bay) %>% ungroup() %>% select(Aisle, Bay, Cat.Space) %>%
+          filter(Cat.Space <quantile(modifier()$Aisle.Space, 0.25), Aisle < -410) %>%
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+    }
+    else {
+      if(input$filteraisles == 0.75){
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          mutate(Dz = case_when(Dz == 'L' ~ -1, Dz == 'M' ~ -2, Dz == 'H' ~ -3)) %>%
+          group_by(Size, Dz, Aisle) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle) %>% ungroup() %>% select(Aisle, Dz, Cat.Space) %>%
+          filter(Cat.Space >quantile(modifier()$Aisle.Space, 0.75), Aisle < -410) %>% 
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+      else {
+        rawDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+          mutate(Dz = case_when(Dz == 'L' ~ -1, Dz == 'M' ~ -2, Dz == 'H' ~ -3)) %>%
+          group_by(Size, Dz, Aisle) %>% summarise(Cat.Space = mean(Space)) %>%
+          mutate(Aisle = -1 * Aisle) %>% ungroup() %>% select(Aisle, Dz, Cat.Space) %>%
+          filter(Cat.Space <quantile(modifier()$Aisle.Space, 0.25), Aisle < -410) %>% 
+          `colnames<-`(c("Aisle", "Slicer", "Available.Space"))
+      }
+    }
+  )
+  
+
+  
+  output$stowMap <- renderPlot(
+    mapPlot() %>% ggplot(.,aes(x=Slicer, y=Aisle, text = paste("Country:", Slicer))) + geom_point(
+      color="purple",
+      fill="#69b3a2",
+      shape=22,
+      alpha=0.5,
+      size=2,
+      stroke = 2
+    ) + ylim(-580, -410)
+
   )
   
   }
