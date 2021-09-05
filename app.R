@@ -232,6 +232,7 @@ server <- function(input,output,session) {
   sDatabase <- reactive(
     s3read_using(FUN = read.csv, bucket = 'stowmaps', object = fileName())
   )
+  
   ## Database Wrangling
   rawDatabase <- reactive(
     sDatabase() %>% filter(Bin.Type %in% c("DRAWER", "LIBRARY-DEEP",
@@ -262,16 +263,18 @@ server <- function(input,output,session) {
   
   modifier <- reactive(
     wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
-      group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>% slice(1:input$percentile) 
+      group_by(Size) %>% arrange(Size, desc(Aisle.Space))  
   )
   
   slices <- reactive(
-    modifier() %>% sample_n(input$bins)
+    modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins)
+  )
+  
+  quant <- reactive(
+    quantile(modifier()$Aisle.Space, 0.75)
   )
  
-  
   ## Slider
-  
   # Date
   observeEvent(
     input$date, {
@@ -286,7 +289,7 @@ server <- function(input,output,session) {
     }
   )
   
-  # Upload
+  # Upload File
   observeEvent(
     input$file, {
       put_object(
@@ -306,16 +309,17 @@ server <- function(input,output,session) {
   )
 
   ### Main Panel
-  
   ## Recommendation
-  ## Last Updated
+  # Last Updated
   output$dummy2 <- renderText({
     paste(c("Last updated at: ",fileName()), collapse = " ")
   })
+  
   # Table
   output$dataset <- renderDataTable(
     slices() %>% select(Location, Aisle.Space)
   )
+  
   # Aisle Text
   output$aisles <- renderUI(
     {
@@ -327,9 +331,48 @@ server <- function(input,output,session) {
       )
     }
   )
+  
+  #Cutoff Space
   output$dummy <- renderText({
-    min(modifier()$Aisle.Space)
+    min(modifier() %>% ungroup() %>% slice(1:input$percentile) %>% select(Aisle.Space))
   })
+  
+  ## Overview
+  # Available Space
+  output$WarehouseAVG <- renderText(
+    {
+      paste(c(
+        round(mean(modifier()$Aisle.Space),1), "%"),
+        collapse = "")
+    }
+  )
+  # Standard Deviation
+  output$stdev <- renderText(
+    paste(c(
+      round(sd(modifier()$Aisle.Space),1),"%"),collapse = "")
+  )
+  # Summary
+  output$sum <- renderPrint(
+    {
+      round(summary(modifier()$Aisle.Space),1)
+    }
+  )
+  # Available Aisles
+  output$availAiles <- renderText({
+    count(modifier() %>% filter(Aisle.Space >quant()) %>% ungroup() %>% select(Aisle.Space))[[1]] / 4
+  })
+  # Target Aisles
+  output$TargetAVG <- renderText("32.7%")
+  # Histogram
+  output$hist <- renderPlot(
+    {
+      hist(
+        modifier()$Aisle.Space, main = "Distribution of Available Space",
+        xlab = "Available Space", ylab = "Number of Aisles", 
+        breaks = seq(-150,100,5)
+      )
+    }
+  )
   
   }
 
