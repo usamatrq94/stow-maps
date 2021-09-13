@@ -39,13 +39,13 @@ ui <- fluidPage(
         column(
           6,
           dateInput(
-            "date", label = "Select Date", value = Sys.Date()
+            "date", label = "Date", value = Sys.Date()
             )
           ),
         column(
           6,
           selectizeInput(
-            "time", label = "Select Time", choices =  NULL
+            "time", label = "Time", choices =  NULL
             )
           )
         ),
@@ -69,12 +69,23 @@ ui <- fluidPage(
                             c("A", "B", "D", "N")
           ))
       ),
+      pickerInput(
+        "Velo", label = "Velocity",
+        choice = c("Slow" = "S", "Fast" = "F", "Non-Velocity" = "NV"),
+        multiple = TRUE, selected = c("S", "F", "NV"),
+        choicesOpt = list(
+          content = sprintf("<span class='label label-%s'>%s</span>",
+                            c("info", "warning", "danger"),
+                            c("Slow", "Fast", "Non-Velocity")
+                            ))
+      )
+      ,
       sliderInput(
-        inputId = "bins", label = "Select Number of Aisles per Bin Type",
+        inputId = "bins", label = "Number of Aisles per Bin Type",
         min = 1, value = 2, max = 10
       ),
       sliderInput(
-        inputId = 'percentile', label = "Select Number of Top Aisles",
+        inputId = 'percentile', label = "Number of Top Aisles",
         min = 1, value = 30, max = 115
       ),
       h6('Cutoff Space'),
@@ -239,7 +250,7 @@ server <- function(input,output,session) {
   ## Selecting database
   fileName <- reactive({
     validate(
-      need(input$time != "", "Please uplaod a new dataset or select date and time to get started.")
+      need(input$time != "", "Please upload a new dataset or select date and time to get started.")
     )
     dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>% 
       arrange(desc(timeRound)) %>% head(1) %>% first(1)
@@ -267,22 +278,27 @@ server <- function(input,output,session) {
           Dropzone == 'dz-P-PRIME' ~ '*', Dropzone == 'dz-P-LIBRARY_DEEP' ~ '*',
           TRUE ~ "ERROR"
         )
-      ) %>% mutate(Space = 100 - Utilization..) %>% mutate(Bay = as.numeric(substr(Bay.Id,14,16)))
+      ) %>% mutate(Space = 100 - Utilization..) %>% mutate(Bay = as.numeric(substr(Bay.Id,14,16))) %>%
+      mutate(
+        Velocity = ifelse(Size %in% c('L', 'DL'), 
+                         ifelse(Shelf %in% c('A', 'B','F', 'G', 'H', 'I'), 'S', 'F'),
+                         'NV')
+      )
   )
   
   wDatabase <- reactive(
-    rawDatabase() %>% group_by(Mod, Dz, Size, Aisle) %>%
+    rawDatabase() %>% group_by(Mod, Dz, Size, Velocity, Aisle) %>%
       summarise(Aisle.Space = mean(Space)) %>% ungroup() %>% 
-      mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size))
+      mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size,"-",Velocity))
   )
   
   modifier <- reactive(
-    wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size) %>%
+    wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size, Velocity %in% input$Velo) %>%
       group_by(Size) %>% arrange(Size, desc(Aisle.Space)) 
   )
   
   slices <- reactive(
-    modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins)
+    modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins, replace = TRUE)
   )
   
   mapPlot <- reactive(
@@ -324,7 +340,7 @@ server <- function(input,output,session) {
   
   displayTable <- reactive(
     if(input$displayMode == "Basic"){
-      slices() %>% select(Location, Aisle.Space)
+      slices() %>% select(Velocity, Location, Aisle.Space)
     }
     else {
       wDatabase()
