@@ -563,7 +563,7 @@ server <- function(input,output,session) {
     paste(c("Current updated at: ",fileName()), collapse = " ")
   })
   output$dummy4 <- renderText({
-    paste(c("Last updated at: ",lastFile()), collapse = " ")
+    paste(c("Compared at: ",lastFile()), collapse = " ")
   })
   # Table
   output$dataset <- renderDataTable(
