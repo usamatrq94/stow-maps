@@ -207,7 +207,9 @@ ui <- fluidPage(
                                                      h6("Compared Apparel Space"),
                                                      verbatimTextOutput("LastApp"),
                                                      h6("Apparel Target Utilization"),
-                                                     verbatimTextOutput("targetA")
+                                                     verbatimTextOutput("targetA"),
+                                                     h6("Apparel Aisle Similarity"),
+                                                     verbatimTextOutput("AppSim")
                                                    ),
                                                    column(
                                                      3,
@@ -216,7 +218,9 @@ ui <- fluidPage(
                                                      h6("Compared Library Space"),
                                                      verbatimTextOutput("LastLib"),
                                                      h6("Library Target Utilization"),
-                                                     verbatimTextOutput("targetL")
+                                                     verbatimTextOutput("targetL"),
+                                                     h6("Library Aisle Similarity"),
+                                                     verbatimTextOutput("LibSim")
                                                    ),
                                                    column(
                                                      3,
@@ -225,7 +229,9 @@ ui <- fluidPage(
                                                      h6("Compared Deep Library Space"),
                                                      verbatimTextOutput("LastDL"),
                                                      h6("Deep Library Target Utilization"),
-                                                     verbatimTextOutput("targetDL")
+                                                     verbatimTextOutput("targetDL"),
+                                                     h6("Deep Library Aisle Similarity"),
+                                                     verbatimTextOutput("DLSim")
                                                    ),
                                                    column(
                                                      3,
@@ -234,7 +240,9 @@ ui <- fluidPage(
                                                      h6("Compared Shoe Bin Space"),
                                                      verbatimTextOutput("LastShoe"),
                                                      h6("Shoe Bin Target Utilization"),
-                                                     verbatimTextOutput("targetShoe")
+                                                     verbatimTextOutput("targetShoe"),
+                                                     h6("Shoe Bin Aisle Similarity"),
+                                                     verbatimTextOutput("SBSim")
                                                    )
                                                ),
                                                style = "default"
@@ -453,6 +461,62 @@ server <- function(input,output,session) {
   )
   Lst_Shoe <- reactive(
     LstOverview() %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  
+  comparisionScore_A <- reactive({
+    simLst <- lstDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'A') %>% 
+      slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    simCurr <- wDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'A') %>%
+      slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    sim <- ifelse(simLst == simCurr, 1, 0)
+    score <- round(sum(sim)/length(sim)*100,2)
+    return(score)
+  })
+  
+  comparisionScore_L <- reactive({
+    simLst <- lstDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'L') %>% 
+        slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    simCurr <- wDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'L') %>%
+        slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    sim <- ifelse(simLst == simCurr, 1, 0)
+    score <- round(sum(sim)/length(sim)*100,2)
+    return(score)
+  })
+  
+  comparisionScore_DL <- reactive({
+    simLst <- lstDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'DL') %>% 
+      slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    simCurr <- wDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'DL') %>%
+      slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    sim <- ifelse(simLst == simCurr, 1, 0)
+    score <- round(sum(sim)/length(sim)*100,2)
+    return(score)
+  })
+  
+  comparisionScore_S <- reactive({
+    simLst <- lstDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'S') %>% 
+      slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    simCurr <- wDatabase() %>% arrange(desc(Aisle.Space)) %>% filter(Size == 'S') %>%
+      slice(1:(input$percentile)) %>% select(Location) %>% unique()
+    sim <- ifelse(simLst == simCurr, 1, 0)
+    score <- round(sum(sim)/length(sim)*100,2)
+    return(score)
+  })
+  
+  output$AppSim <- renderText(
+    paste(comparisionScore_A(), " %")
+  )
+  
+  output$LibSim <- renderText(
+    paste(comparisionScore_L(), " %")
+  )
+  
+  output$DLSim <- renderText(
+    paste(comparisionScore_DL(), " %")
+  )
+  
+  output$SBSim <- renderText(
+    paste(comparisionScore_S(), " %")
   )
   
   ## Slider
