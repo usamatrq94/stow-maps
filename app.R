@@ -6,6 +6,7 @@ library(aws.s3)
 library(shinyBS)
 library(shinyWidgets)
 library(DT)
+library(purrr)
 
 ## Setting upload limit of 35Mb
 options(shiny.maxRequestSize=35*1024^2)
@@ -13,7 +14,6 @@ options(shiny.maxRequestSize=35*1024^2)
 ## Fetching AWS Environment
 source("aws_creds.R")
 aws_creds()
-
 
 ## SHINY APP
 
@@ -195,35 +195,55 @@ ui <- fluidPage(
                                                fluidRow(
                                                    column(
                                                      3,
-                                                     h6("Apparel Space"),
+                                                     h6("Current Apparel Space"),
                                                      verbatimTextOutput("AppSpace"),
+                                                     h6("Last Apparel Space"),
+                                                     verbatimTextOutput("LastApp"),
                                                      h6("Apparel Target Utilization"),
                                                      verbatimTextOutput("targetA")
                                                    ),
                                                    column(
                                                      3,
-                                                     h6("Library Space"),
+                                                     h6("Current Library Space"),
                                                      verbatimTextOutput("LibSpace"),
+                                                     h6("Last Library Space"),
+                                                     verbatimTextOutput("LastLib"),
                                                      h6("Library Target Utilization"),
                                                      verbatimTextOutput("targetL")
                                                    ),
                                                    column(
                                                      3,
-                                                     h6("Deep Library Space"),
+                                                     h6("Current Deep Library Space"),
                                                      verbatimTextOutput("dlSpace"),
+                                                     h6("Last Deep Library Space"),
+                                                     verbatimTextOutput("LastDL"),
                                                      h6("Deep Library Target Utilization"),
                                                      verbatimTextOutput("targetDL")
                                                    ),
                                                    column(
                                                      3,
-                                                     h6("Shoe Bin Space"),
+                                                     h6("Current Shoe Bin Space"),
                                                      verbatimTextOutput("sbSpace"),
+                                                     h6("Last Shoe Bin Space"),
+                                                     verbatimTextOutput("LastShoe"),
                                                      h6("Shoe Bin Target Utilization"),
                                                      verbatimTextOutput("targetShoe")
                                                    )
                                                ),
                                                style = "default"
                                                )
+                    ),
+                    textOutput("dummy3"),
+                    tags$head(
+                      tags$style(
+                        "#dummy3{font-size: 12px; font-style: italic;}"
+                      )
+                    ),
+                    textOutput("dummy4"),
+                    tags$head(
+                      tags$style(
+                        "#dummy4{font-size: 12px; font-style: italic;}"
+                      )
                     )
                     
                   ),
@@ -247,7 +267,7 @@ server <- function(input,output,session) {
       )
     )
   
-  ## Selecting database
+  ## Selecting current database
   fileName <- reactive({
     validate(
       need(input$time != "", "Please upload a new dataset or select date and time to get started.")
@@ -255,11 +275,12 @@ server <- function(input,output,session) {
     dates %>% filter(Date == input$date) %>% filter(timeRound == input$time) %>% 
       arrange(desc(timeRound)) %>% head(1) %>% first(1)
   })
+  # Download Curent file from S3 Container
   sDatabase <- reactive(
     s3read_using(FUN = read.csv, bucket = 'stowmaps', object = fileName())
   )
   
-  ## Database Wrangling
+  # Database Wrangling
   rawDatabase <- reactive(
     sDatabase() %>% filter(Bin.Type %in% c("DRAWER", "LIBRARY-DEEP",
                                          "LIBRARY", "SHOES"),
@@ -285,22 +306,79 @@ server <- function(input,output,session) {
                          'NV')
       )
   )
-  
+  # Grouping Data
   wDatabase <- reactive(
     rawDatabase() %>% group_by(Mod, Dz, Size, Velocity, Aisle) %>%
       summarise(Aisle.Space = mean(Space)) %>% ungroup() %>% 
-      mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size,"-",Velocity))
+      mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size,"-",Velocity)) %>% distinct()
   )
-  
+  # Slicing data as per user inputs
   modifier <- reactive(
     wDatabase() %>% filter(Mod %in% input$Mod, Size %in% input$Size, Velocity %in% input$Velo) %>%
       group_by(Size) %>% arrange(Size, desc(Aisle.Space)) 
   )
-  
+  # Printmon slicers
   slices <- reactive(
-    modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins, replace = TRUE)
+    modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins)
   )
   
+  ## Selecting Last Database
+  lastFile <- reactive(
+    dates  %>% filter(Date == input$date) %>% arrange(desc(timeRound)) %>%
+      filter(row_number()==2) %>% first(1)
+  )
+  ## Downloading Last Database from S3
+  lDatabase <- reactive(
+    s3read_using(FUN = read.csv, bucket = 'stowmaps', object = lastFile())
+  )
+  ## Data Wrangling for last database
+  lstDatabase <- reactive(
+    lDatabase() %>% filter(Bin.Type %in% c("DRAWER", "LIBRARY-DEEP",
+                                           "LIBRARY", "SHOES"),
+                           !Bin.Usage == "DAMAGE") %>%
+      mutate(
+        Size = case_when(
+          Bin.Type == "DRAWER" ~ "A", Bin.Type == "LIBRARY-DEEP" ~ "DL",
+          Bin.Type == "LIBRARY" ~ "L", Bin.Type == "SHOES" ~ "S", TRUE ~ "ERROR"
+        )
+      ) %>% filter(!Dropzone %in% c("dz-P-Damage", "dz-P-DMGLAND", "dz-P-HRV")) %>%
+      mutate(
+        Dz = case_when(
+          Dropzone == 'dz-P-A1LOW' ~ 'L', Dropzone == 'dz-P-NONSORT' ~ '*',
+          Dropzone == 'dz-P-A1MED' ~ 'M', Dropzone == 'dz-P-A1HIGH' ~ 'H',
+          Dropzone == 'dz-P-SORT' ~ '*', Dropzone == 'dz-P-1A' ~ '*',
+          Dropzone == 'dz-P-PRIME' ~ '*', Dropzone == 'dz-P-LIBRARY_DEEP' ~ '*',
+          TRUE ~ "ERROR"
+        )
+      ) %>% mutate(Space = 100 - Utilization..) %>% mutate(Bay = as.numeric(substr(Bay.Id,14,16))) %>%
+      mutate(
+        Velocity = ifelse(Size %in% c('L', 'DL'), 
+                          ifelse(Shelf %in% c('A', 'B','F', 'G', 'H', 'I'), 'S', 'F'),
+                          'NV')
+      ) %>% group_by(Mod, Dz, Size, Velocity, Aisle) %>%
+      summarise(Aisle.Space = mean(Space)) %>% ungroup() %>% 
+      mutate(Location = paste0(Mod, "-", Aisle, Dz, "-", Size,"-",Velocity)) %>% distinct()
+  )
+  ## Current Overview dataset
+  CurrOverview <- reactive(
+    wDatabase() %>% group_by(Size) %>% arrange(desc(Aisle.Space)) %>% slice(1:(input$percentile*4)) %>% 
+      summarise(Size.Space = mean(Aisle.Space)) %>% ungroup()
+  )
+  ## Last overview dataset
+  LstOverview <- reactive(
+    lstDatabase() %>% group_by(Size) %>% arrange(desc(Aisle.Space)) %>% slice(1:(input$percentile*4)) %>% 
+      summarise(Size.Space = mean(Aisle.Space)) %>% ungroup()
+  )
+  ## Data table viewer element
+  displayTable <- reactive(
+    if(input$displayMode == "Basic"){
+      slices() %>% select(Velocity, Location, Aisle.Space)
+    }
+    else {
+      wDatabase()
+    }
+  )
+  # Stow maps element
   mapPlot <- reactive(
     if(input$selectslice == 2){
       if(input$filteraisles == 0.75){
@@ -337,16 +415,32 @@ server <- function(input,output,session) {
       }
     }
   )
-  
-  displayTable <- reactive(
-    if(input$displayMode == "Basic"){
-      slices() %>% select(Velocity, Location, Aisle.Space)
-    }
-    else {
-      wDatabase()
-    }
+  # Performance Metrics Metrics
+  Curr_A <- reactive(
+    CurrOverview() %>% ungroup %>% filter(Size == 'A') %>% select(Size.Space) %>% round(digits = 2)
   )
- 
+  Curr_L <- reactive(
+    CurrOverview() %>% ungroup %>% filter(Size == 'L') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  Curr_Dl <- reactive(
+    CurrOverview() %>% ungroup %>% filter(Size == 'DL') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  Curr_Shoes <- reactive(
+    CurrOverview() %>% ungroup %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  Lst_A <- reactive(
+    LstOverview() %>% ungroup %>% filter(Size == 'A') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  Lst_L <- reactive(
+    LstOverview() %>% ungroup %>% filter(Size == 'L') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  Lst_DL <- reactive(
+    LstOverview() %>% ungroup %>% filter(Size == 'DL') %>% select(Size.Space) %>% round(digits = 2) 
+  )
+  Lst_Shoe <- reactive(
+    LstOverview() %>% ungroup %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
+  )
+  
   ## Slider
   # Date
   observeEvent(
@@ -387,11 +481,15 @@ server <- function(input,output,session) {
   output$dummy2 <- renderText({
     paste(c("Last updated at: ",fileName()), collapse = " ")
   })
-  
+  output$dummy3 <- renderText({
+    paste(c("Current updated at: ",fileName()), collapse = " ")
+  })
+  output$dummy4 <- renderText({
+    paste(c("Last updated at: ",lastFile()), collapse = " ")
+  })
   # Table
   output$dataset <- renderDataTable(
     datatable(displayTable(), options = list(pageLength = 8))
-
   )
   
   # Aisle Text
@@ -460,6 +558,72 @@ server <- function(input,output,session) {
       size=2,
       stroke = 2
     ) + ylim(-580, -410)
+  )
+  
+  ## Performance Metrics
+  # Apparel Space
+  output$AppSpace <- renderText(
+    Curr_A() %>% toString() %>% paste("%")
+  )
+
+  output$LibSpace <- renderText(
+    Curr_L() %>% toString() %>% paste("%")
+  )
+    
+  output$dlSpace <- renderText(
+    Curr_Dl() %>% toString() %>% paste("%")
+  )
+  
+  output$sbSpace <- renderText(
+    Curr_Shoes() %>% toString() %>% paste("%")
+  )
+  
+  output$LastApp <- renderText(
+    Lst_A() %>% toString() %>% paste("%")
+  )
+  output$LastLib <- renderText(
+    Lst_L() %>% toString() %>% paste("%")
+  )
+  output$LastDL <- renderText(
+    Lst_DL() %>% toString() %>% paste("%")
+  )
+  output$LastShoe <- renderText(
+    Lst_Shoe() %>% toString() %>% paste("%")
+  )
+  output$targetA <- renderText(
+    paste0(
+      round(
+        (Lst_A() - Curr_A())/Lst_A()*100, 2
+      ),
+      " %"
+    )
+  )
+  
+  output$targetL <- renderText(
+    paste0(
+      round(
+        (Lst_L() - Curr_L())/Lst_L()*100, 2
+      ),
+      " %"
+    )
+  )
+  
+  output$targetDL <- renderText(
+    paste0(
+      round(
+        (Lst_DL() - Curr_Dl())/Lst_DL()*100, 2
+      ),
+      " %"
+    )
+  )
+  
+  output$targetShoe <- renderText(
+    paste0(
+      round(
+        (Lst_Shoe() - Curr_Shoes())/Lst_Shoe()*100, 2
+      ),
+      " %"
+    )
   )
   
   }
