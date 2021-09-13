@@ -444,7 +444,7 @@ server <- function(input,output,session) {
       hist(
         modifier()$Aisle.Space, main = "Distribution of Available Space",
         xlab = "Available Space", ylab = "Number of Aisles", 
-        breaks = seq(-150,100,5)
+        breaks = seq(-250,100,5)
       )
     }
   )
