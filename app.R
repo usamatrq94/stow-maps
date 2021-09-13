@@ -583,8 +583,14 @@ server <- function(input,output,session) {
   )
   
   #Cutoff Space
+  
+  ctf <- reactive(
+    modifier() %>% group_by(Size) %>% arrange(Size, desc(Aisle.Space)) %>% slice(1:input$percentile) %>%
+      ungroup()
+  )
+  
   output$dummy <- renderText({
-    min(modifier() %>% ungroup() %>% slice(1:input$percentile) %>% select(Aisle.Space))
+    mean(ctf()$Aisle.Space)
   })
   
   ## Overview
