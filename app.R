@@ -191,13 +191,20 @@ ui <- fluidPage(
                                                ),
                                                style = "default"
                                                ),
-                               bsCollapsePanel("Performance Metrics", 
+                               bsCollapsePanel("Performance Metrics",
+                                               fluidRow(
+                                                 column(3,
+                                                        selectizeInput(
+                                                          "timeCompare", label = "Compare With:", choices =  NULL
+                                                        )
+                                                 )
+                                               ),
                                                fluidRow(
                                                    column(
                                                      3,
                                                      h6("Current Apparel Space"),
                                                      verbatimTextOutput("AppSpace"),
-                                                     h6("Last Apparel Space"),
+                                                     h6("Compared Apparel Space"),
                                                      verbatimTextOutput("LastApp"),
                                                      h6("Apparel Target Utilization"),
                                                      verbatimTextOutput("targetA")
@@ -206,7 +213,7 @@ ui <- fluidPage(
                                                      3,
                                                      h6("Current Library Space"),
                                                      verbatimTextOutput("LibSpace"),
-                                                     h6("Last Library Space"),
+                                                     h6("Compared Library Space"),
                                                      verbatimTextOutput("LastLib"),
                                                      h6("Library Target Utilization"),
                                                      verbatimTextOutput("targetL")
@@ -215,7 +222,7 @@ ui <- fluidPage(
                                                      3,
                                                      h6("Current Deep Library Space"),
                                                      verbatimTextOutput("dlSpace"),
-                                                     h6("Last Deep Library Space"),
+                                                     h6("Compared Deep Library Space"),
                                                      verbatimTextOutput("LastDL"),
                                                      h6("Deep Library Target Utilization"),
                                                      verbatimTextOutput("targetDL")
@@ -224,7 +231,7 @@ ui <- fluidPage(
                                                      3,
                                                      h6("Current Shoe Bin Space"),
                                                      verbatimTextOutput("sbSpace"),
-                                                     h6("Last Shoe Bin Space"),
+                                                     h6("Compared Shoe Bin Space"),
                                                      verbatimTextOutput("LastShoe"),
                                                      h6("Shoe Bin Target Utilization"),
                                                      verbatimTextOutput("targetShoe")
@@ -322,11 +329,18 @@ server <- function(input,output,session) {
     modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins)
   )
   
+  # fileName <- reactive({
+
+  # })
+  # 
   ## Selecting Last Database
-  lastFile <- reactive(
-    dates  %>% filter(Date == input$date) %>% arrange(desc(timeRound)) %>%
-      filter(row_number()==2) %>% first(1)
-  )
+  lastFile <- reactive({
+    validate(
+      need(input$timeCompare != "", "Please select compared file to get started.")
+    )
+    dates %>% filter(Date == input$date) %>% filter(timeRound == input$timeCompare) %>%
+      head(1) %>% first(1)
+  })
   ## Downloading Last Database from S3
   lDatabase <- reactive(
     s3read_using(FUN = read.csv, bucket = 'stowmaps', object = lastFile())
@@ -417,28 +431,28 @@ server <- function(input,output,session) {
   )
   # Performance Metrics Metrics
   Curr_A <- reactive(
-    CurrOverview() %>% ungroup %>% filter(Size == 'A') %>% select(Size.Space) %>% round(digits = 2)
+    CurrOverview()  %>% filter(Size == 'A') %>% select(Size.Space) %>% round(digits = 2)
   )
   Curr_L <- reactive(
-    CurrOverview() %>% ungroup %>% filter(Size == 'L') %>% select(Size.Space) %>% round(digits = 2)
+    CurrOverview() %>% filter(Size == 'L') %>% select(Size.Space) %>% round(digits = 2)
   )
   Curr_Dl <- reactive(
-    CurrOverview() %>% ungroup %>% filter(Size == 'DL') %>% select(Size.Space) %>% round(digits = 2)
+    CurrOverview()  %>% filter(Size == 'DL') %>% select(Size.Space) %>% round(digits = 2)
   )
   Curr_Shoes <- reactive(
-    CurrOverview() %>% ungroup %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
+    CurrOverview() %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
   )
   Lst_A <- reactive(
-    LstOverview() %>% ungroup %>% filter(Size == 'A') %>% select(Size.Space) %>% round(digits = 2)
+    LstOverview() %>% filter(Size == 'A') %>% select(Size.Space) %>% round(digits = 2)
   )
   Lst_L <- reactive(
-    LstOverview() %>% ungroup %>% filter(Size == 'L') %>% select(Size.Space) %>% round(digits = 2)
+    LstOverview() %>% filter(Size == 'L') %>% select(Size.Space) %>% round(digits = 2)
   )
   Lst_DL <- reactive(
-    LstOverview() %>% ungroup %>% filter(Size == 'DL') %>% select(Size.Space) %>% round(digits = 2) 
+    LstOverview() %>% filter(Size == 'DL') %>% select(Size.Space) %>% round(digits = 2) 
   )
   Lst_Shoe <- reactive(
-    LstOverview() %>% ungroup %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
+    LstOverview() %>% filter(Size == 'S') %>% select(Size.Space) %>% round(digits = 2)
   )
   
   ## Slider
@@ -624,6 +638,20 @@ server <- function(input,output,session) {
       ),
       " %"
     )
+  )
+  
+  ## Time Compare
+  observeEvent(
+    input$time, {
+      timeC <- reactive(
+        dates %>% filter(Date == input$date) %>% filter(!timeRound == input$time)
+      )
+      updateSelectizeInput(session, 
+                           'timeCompare', 
+                           choices = timeC()$timeRound,
+                           selected = unlist(timeC()$timeRound)[-1],
+                           server = TRUE)
+    }
   )
   
   }
