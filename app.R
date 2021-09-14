@@ -166,6 +166,8 @@ ui <- fluidPage(
                           border: 1px #E0E0E0; border-radius: 5px; border: 1px solid #DCDCDC}"
                                  )
                                ),
+                               hr(),
+                               fluidRow(align="center",actionButton("search", "Search")),
                              )
                            )
                   ),
@@ -333,9 +335,10 @@ server <- function(input,output,session) {
       group_by(Size) %>% arrange(Size, desc(Aisle.Space)) 
   )
   # Printmon slicers
-  slices <- reactive(
+  slices <- reactive({
+    input$search
     modifier() %>% slice(1:input$percentile) %>% sample_n(input$bins)
-  )
+  })
   
   # fileName <- reactive({
 
