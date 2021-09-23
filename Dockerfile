@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y \
     libcurl4-gnutls-dev \
     libssl-dev 
 
+COPY ./stow-maps/app/* ./app
+
 RUN R -e 'install.packages(c("shiny", "dplyr", "tidyr", "ggplot2", "aws.s3", "shinyBS", "shinyWidgets", "DT", "purrr"), \
             repos="https://packagemanager.rstudio.com/cran/__linux__/focal/2021-04-23"\
           )'
 
 RUN mkdir app
-
-COPY --from=build ./stow-maps/app/* ./app
 
 CMD ["R", "-e", "shiny::runApp('/app', host = '0.0.0.0', port = 3838)"]
