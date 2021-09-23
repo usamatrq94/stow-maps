@@ -12,7 +12,9 @@ RUN R -e 'install.packages(c("shiny", "dplyr", "tidyr", "ggplot2", "aws.s3", "sh
             repos="https://packagemanager.rstudio.com/cran/__linux__/focal/2021-04-23"\
           )'
 
-COPY /home/ubuntu/stow-maps/app/* ./app
+WORKDIR /home/ubuntu/stow-maps/app
+
+COPY app .
 
 EXPOSE 3838
 
