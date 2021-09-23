@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     libcurl4-gnutls-dev \
     libssl-dev 
 
-COPY ["./stow-maps/app","stow-maps"]
+ADD ./stow-maps/app .
 
 RUN R -e 'install.packages(c("shiny", "dplyr", "tidyr", "ggplot2", "aws.s3", "shinyBS", "shinyWidgets", "DT", "purrr"), \
             repos="https://packagemanager.rstudio.com/cran/__linux__/focal/2021-04-23"\
