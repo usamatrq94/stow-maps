@@ -46,7 +46,7 @@ COPY ./app/aws_creds.R .
 # setting permissions for app user
 RUN chown app:app -R /home/app
 
-# setting user
+# setting user and exposing port
 USER app
 EXPOSE 3838
 

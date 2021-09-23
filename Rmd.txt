@@ -21,6 +21,7 @@ sudo usermod -a -G docker $USER
 # change directory
 cd /stow-maps
 
+# make sure to edit Dockerfile and add AWS credentials
 # build docker image
 docker build -t "stow-maps"  .
 
