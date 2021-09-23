@@ -12,10 +12,8 @@ RUN R -e 'install.packages(c("shiny", "dplyr", "tidyr", "ggplot2", "aws.s3", "sh
             repos="https://packagemanager.rstudio.com/cran/__linux__/focal/2021-04-23"\
           )'
 
-WORKDIR /home/ubuntu/stow-maps/app/
+MKDIR app
 
-COPY * .
-
-EXPOSE 3838
+COPY ./stow-maps/app/* ./app
 
 CMD ["R", "-e", "shiny::runApp('/app', host = '0.0.0.0', port = 3838)"]
