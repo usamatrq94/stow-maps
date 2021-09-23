@@ -14,7 +14,7 @@ RUN R -e 'install.packages(c("shiny", "dplyr", "tidyr", "ggplot2", "aws.s3", "sh
 
 WORKDIR /home/ubuntu/stow-maps/app
 
-COPY * ./app
+COPY * ./app/
 
 EXPOSE 3838
 

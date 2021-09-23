@@ -18,3 +18,7 @@ sudo apt-get install docker-ce
 # handling user permissions
 sudo usermod -a -G docker $USER
 
+# build docker image
+docker build -t "stow-maps"  - <  stow-maps/Dockerfile
+
+
