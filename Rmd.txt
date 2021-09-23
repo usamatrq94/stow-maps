@@ -21,4 +21,8 @@ sudo usermod -a -G docker $USER
 # build docker image
 docker build -t "stow-maps"  - <  stow-maps/Dockerfile
 
+docker run -it --entrypoint /bin/bash stow-maps -s
+
+docker run -d --rm -p 3838:3838 stow-maps
+
 
