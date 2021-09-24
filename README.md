@@ -1,5 +1,5 @@
 # Stow Maps
-The following code helps deploy shiny-R based docker container on AWS EC-2 instance. 
+The following code helps deploy shiny-R based docker container on AWS EC-2 instance - ubuntu 18.04. 
 This can be done in five steps:
 1. Updating system files and install github
 2. Cloning stow-maps repository into instance.
@@ -58,10 +58,10 @@ Run docker using:
 docker run -p 3838:3838 stow-maps
 ```
 The `-p` command is mapping shiny port 3838 to instance port 3838. 
-Feel free to map 3838 onto any other port like 80 or 443.
+Feel free to map 3838 onto any other port like 80 or 443. I'll be using port 443. 
 If the container is not working appropriately, use following code to debug container
 ```
 docker run -it --entrypoint /bin/bash stow-maps -s
 ```
 Once docker is running perfectly, we can now connect to the instance and excess port 3838. For example if your system DNS is <my-ip> excess it through port 3838 like <my-ip>:3838
-This code is currently live at: [http://13.210.238.41:3838](http://13.210.238.41:3838)
+This code is currently live at: [http://13.210.238.41:443](http://13.210.238.41:443)
