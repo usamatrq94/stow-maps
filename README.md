@@ -6,6 +6,7 @@ This can be done in five steps:
 3. Downloading and installing Docker
 4. Building docker image
 5. Running docker container
+
 Lets start
 ## 1. Updating system files and installing github
 Run following commands
