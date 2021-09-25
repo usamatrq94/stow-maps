@@ -16,7 +16,7 @@ sudo apt-get update
 sudo apt-get install docker-ce
 
 # handling user permissions
-sudo usermod -a -G docker $USER
+sudo usermod -a -G docker ${USER}
 
 # change directory
 cd /stow-maps

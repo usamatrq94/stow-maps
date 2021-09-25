@@ -1,5 +1,6 @@
 # git repository 
 # https://github.com/usamatrq94/stow-maps
+# for any help or queries regarding this, please reach out to usama.bt94@gmail.com
 
 # base R image https://hub.docker.com/u/rocker/
 FROM rocker/r-base:latest
@@ -27,6 +28,9 @@ RUN R -e 'install.packages("aws.s3", repos = "https://cloud.R-project.org")'
 RUN addgroup --system app \
     && adduser --system --ingroup app app
 
+# copying files to container
+WORKDIR /home/app/
+
 # creating AWS credentials
 RUN echo "aws_creds <- function(){ \
   return( \
@@ -36,12 +40,10 @@ RUN echo "aws_creds <- function(){ \
       "AWS_DEFAULT_REGION" = "YOUR_REGION" \ 
     ) \
   ) \
-}" > ./app/aws_creds.R 
+}" > aws_creds.R 
 
-# copying files to container
-WORKDIR /home/app/
+
 COPY ./app/app.R .
-COPY ./app/aws_creds.R .
 
 # setting permissions for app user
 RUN chown app:app -R /home/app
