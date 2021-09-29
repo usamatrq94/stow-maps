@@ -32,7 +32,7 @@ cd ..
 ## 3. Downloading and installing Docker
 Run the following code line by line to download docker from official repository
 ```
-sudo apt-get updat
+sudo apt-get update
 sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add –
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable" 
@@ -43,11 +43,11 @@ With this done, we need to manage permissions for our user. This will help avoid
 ```
 sudo usermod -a -G docker ${USER}
 ```
-Don't forget to replace `${USER}` with your username. In my case it was `ubuntu`
+Don't forget to replace `${USER}` with your username.
 ## 4. Building docker image
 To build image, we need to first change our directory and head on to stow-maps folder.
 ```
-cd /stow-maps
+cd stow-maps/
 ```
 Once done, lets build docker image
 ```
