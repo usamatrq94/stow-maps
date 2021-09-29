@@ -32,7 +32,7 @@ cd ..
 ## 3. Downloading and installing Docker
 Run the following code line by line to download docker from official repository
 ```
-sudo apt-get updat
+sudo apt-get update
 sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add –
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable" 
@@ -43,11 +43,11 @@ With this done, we need to manage permissions for our user. This will help avoid
 ```
 sudo usermod -a -G docker ${USER}
 ```
-Don't forget to replace `${USER}` with your username. In my case it was `ubuntu`
+Don't forget to replace `${USER}` with your username.
 ## 4. Building docker image
 To build image, we need to first change our directory and head on to stow-maps folder.
 ```
-cd /stow-maps
+cd stow-maps/
 ```
 Once done, lets build docker image
 ```
@@ -65,4 +65,4 @@ If the container is not working appropriately, use following code to debug conta
 docker run -it --entrypoint /bin/bash stow-maps -s
 ```
 Once docker is running perfectly, we can now connect to the instance and excess port 3838. For example if your system DNS is <my-ip> excess it through port 3838 like <my-ip>:3838
-This code is currently live at: [http://54.206.251.186:3838/](http://54.206.251.186:3838/) or [https://stowmaps-by.thatanalytics.studio/](https://stowmaps-by.thatanalytics.studio/)
+This code is currently live at: [https://stowmaps-by.thatanalytics.studio/](https://stowmaps-by.thatanalytics.studio/)
