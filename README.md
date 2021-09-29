@@ -65,4 +65,6 @@ If the container is not working appropriately, use following code to debug conta
 docker run -it --entrypoint /bin/bash stow-maps -s
 ```
 Once docker is running perfectly, we can now connect to the instance and excess port 3838. For example if your system DNS is <my-ip> excess it through port 3838 like <my-ip>:3838
-This code is currently live at: [https://stowmaps-by.thatanalytics.studio/](https://stowmaps-by.thatanalytics.studio/)
+This code is currently live at: 
+  *[https://stowmaps-by.thatanalytics.studio/](https://stowmaps-by.thatanalytics.studio/)
+  *[https://muhammadtariq.shinyapps.io/stowmaps/](https://muhammadtariq.shinyapps.io/stowmaps/)
