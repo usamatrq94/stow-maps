@@ -1,0 +1,13 @@
+name: stowmaps
+title: stowmaps
+username:
+account: muhammadtariq
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4756269
+bundleId: 5083524
+url: https://muhammadtariq.shinyapps.io/stowmaps/
+when: 1632888225.19246
+lastSyncTime: 1632888225.19246
+asMultiple: FALSE
+asStatic: FALSE

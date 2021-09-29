@@ -26,7 +26,7 @@ cd /stow-maps
 docker build -t "stow-maps"  .
 
 # running docker container
-docker run -p 3838:3838 stow-maps
+docker run - d -p 3838:3838 stow-maps
 
 # only for debugging
 docker run -it --entrypoint /bin/bash stow-maps -s

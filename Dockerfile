@@ -35,9 +35,9 @@ WORKDIR /home/app/
 RUN echo "aws_creds <- function(){ \
   return( \
     Sys.setenv( \
-      "AWS_ACCESS_KEY_ID" = "YOUR_ACCESS_KEY_ID", \
-      "AWS_SECRET_ACCESS_KEY" = "YOUR_SECRET_KEY", \
-      "AWS_DEFAULT_REGION" = "YOUR_REGION" \ 
+      'AWS_ACCESS_KEY_ID' = 'YOUR_ACCESS_KEY_ID', \
+      'AWS_SECRET_ACCESS_KEY' = 'YOUR_SECRET_KEY', \
+      'AWS_DEFAULT_REGION' = 'YOUR_REGION' \ 
     ) \
   ) \
 }" > aws_creds.R 
